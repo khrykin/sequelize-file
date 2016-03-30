@@ -102,4 +102,4 @@ User.findById(1)
 
 ## Status
 
-This package is under early development. Use with caution!
+This package is under early development. Do not use it yet!
