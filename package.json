@@ -1,6 +1,6 @@
 {
   "name": "sequelize-file",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "File attachemnts logic and image post-processing for sequelize",
   "main": "lib/SequelizeFile.js",
   "scripts": {

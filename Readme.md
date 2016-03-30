@@ -38,6 +38,7 @@ Then, you extract necessary attributes and hooks and attach them to your model. 
 
 ```javascript
 /* models/User.js */
+
 import sequelize from './db';
 import { STRING } from 'sequelize';
 import { picture, backgroundImage } from './attachments';
@@ -75,10 +76,11 @@ let user2 = User.build({
   }
 });
 
-user2.save()
+user2.save();
+
 // Deleting file(s)
 .then(user2 => {
-  user2.update({ picture: null })
+  user2.update({ picture: null });
 });
 
 
