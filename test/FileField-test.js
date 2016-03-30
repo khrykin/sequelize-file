@@ -241,6 +241,22 @@ describe('SequelizeFileField', () => {
             });
         });
 
+        it('should replace old file', (done) => {
+          return Model
+            .create({ pic: URL })
+            .then(instance => instance.update({ pic: FILE }))
+            .then(instance => {
+
+              expect(instance.pic).toBeA('string');
+              expect(instance.pic).toInclude('Lenna');
+
+              fs.stat('public' + instance.pic, (err, stat) => {
+                expect(err).toNotExist();
+                done();
+              });
+            });
+        });
+
         it('shouldn\'t cleanup when cleanup is falsy', done => {
           Model
             .create({ pic: FILE })
@@ -301,14 +317,16 @@ describe('SequelizeFileField', () => {
           return Model
             .create({ pic: FILE })
             .then(instance => {
-              fs.stat(instance.pic, (err, stat) => {
-                expect(err).toNotExist();
-                instance.pic = null
-                instance.save()
+              return fileExists(instance.pic)
+              .then(exists => {
+                instance.pic = null;
+                return instance.save()
                   .then(instance => {
                     expect(instance.pic).toNotExist();
-                  });
-              });
+                  })
+                  .catch(err => Promise.reject(err));
+              })
+              .catch(err => Promise.reject(err));
             });
         });
 
