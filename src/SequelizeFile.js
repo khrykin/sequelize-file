@@ -73,31 +73,42 @@ const DEFAULT_QUALITY = 100;
 
 export default class SequelizeField {
 
-  /** Returns an instance with attrs property and addHookTo(Model) method
+  /**
+   * Returns an instance with attrs property and addHookTo(Model) method
    * for given options
    * @param   {Object}  options
+   *
    * @param   {String}  options.virtualAttribute - name of attribute from
    *                    which you want to set/access file path(s).
    *                    For example: userpic, image, bg, etc.
+   *
    * @param   {String|RegExp}  options.mimetype - allowed MIME type of
    *                    attachments. Example: /^image/
+   *
    * @param   {String}  [options.pathAttribute] - name of real db field, where
    *                    original path will be stored
+   *
    * @param   {String}  [options.sizes] - object with resize options in format
    *                    of [name]: "{width}x{height}{options}". Only for images.
+   *
    * @param   {Boolean} [options.crop] - if true, a new virtual attribute will
    *                    be created to set crop properties. Only for images.
+   *
    * @param   {String} [options.basepath='public/uploads'] - Path relative to
    *                    your project, where you want to store processed files.
+   *
    * @param   {String} [options.publicPath='public'] - Path fragment relative to
-   *                    your project, which you want to store in db.
+   *                    your project, which you don't want to store in db.
+   *
    * @param   {String} [options.folderKey='id'] - Name of attribute, by which
    *                    processed files will be grouped.
+   *
    * @param   {String} [options.cleanup=false] - If true, old files will be
    *                    deleted, when you update corresponding field
+   *
    * @return  {attrs:Object, addHooksTo:Function}
    */
-   
+
   constructor({
       virtualAttribute,
       mimetype,
@@ -112,13 +123,13 @@ export default class SequelizeField {
     }) {
     /* --- VALIDATIONS ---------------------------------------------------- */
 
-    validateType({ virtualAttribute }, 'String');
-    validateType({ pathAttribute }, 'String | Undefined');
-    validateType({ mimetype },      'String | RegExp');
-    validateType({ crop },          'Boolean | Undefined');
-    validateType({ cleanup },       'Boolean | Undefined');
-    validateType({ folderKey },     'String | Undefined');
-    validateType({ sizes },         'Object | String | Undefined');
+    validateType({ virtualAttribute },'String');
+    validateType({ pathAttribute },   'String | Undefined');
+    validateType({ mimetype },        'String | RegExp');
+    validateType({ crop },            'Boolean | Undefined');
+    validateType({ cleanup },         'Boolean | Undefined');
+    validateType({ folderKey },       'String | Undefined');
+    validateType({ sizes },           'Object | String | Undefined');
 
     if ((crop || sizes ) && !/image/.test(mimetype)) {
       throw new Error(
@@ -138,7 +149,7 @@ export default class SequelizeField {
     this._PUBLIC_PATH            = publicPath || 'public';
     this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
     this._FOLDER_KEY             = folderKey || 'id';
-    this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || 'Wrong file\'s MIME type';
+    this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
 
     /* --- PUBLIC PROPS --------------------------------------------------- */
 
@@ -146,16 +157,41 @@ export default class SequelizeField {
   }
 
 
-  /** Sequelize hook with file handling logic
+  /**
+   * Sequelize beforeUpdate hook
    * @param {Sequelize.Instance} instance
-   * @param {Object} options
+   * @param {Object} options - Sequelize save options
+   * @return {Promise}
    */
 
-  _setFileHook = (instance, options) => {
+  _beforeUpdateHook = (instance, options) => {
+    return this._setFile(instance, options)
+  };
+
+  /**
+   * Sequelize afterCreate hook
+   * @param {Sequelize.Instance} instance
+   * @param {Object} options - Sequelize save options
+   * @return {Promise}
+   */
+
+  _afterCreateHook = (instance, options) => {
+    return this._setFile(instance, options, true);
+  };
+
+  /**
+   * Abstract Hook
+   * @param {Sequelize.Instance} instance
+   * @param {Object} options - Sequelize save options
+   * @param {Boolean} afterCreate - if true an extra update will be triggered
+   * @return {Promise}
+   */
+
+  _setFile(instance, options, afterCreate) {
     const file = instance.getDataValue(this._VIRTUAL_ATTRIBUTE_NAME);
 
     if (
-      instance.previous(this._PATH_ATTRIBUTE_NAME) === file ||
+      ( file && file.updated ) ||
       typeof file === 'undefined'
     ) return ;
 
@@ -171,7 +207,7 @@ export default class SequelizeField {
 
       return this._moveFromTemporary(file, instance)
       .then(file => {
-        return this._attachFile(instance, file);
+        return this._attachFile(instance, file, afterCreate);
       })
       .catch(err => this._validationError(err));
 
@@ -185,17 +221,17 @@ export default class SequelizeField {
 
       return download(url, filename)
       .then(file => {
-        return this._attachFile(instance, file);
+        return this._attachFile(instance, file, afterCreate);
       })
       .catch(err => this._validationError(err));
 
     } else if (typeOf(file) === 'Null'){
       instance.setDataValue(this._PATH_ATTRIBUTE_NAME, null);
     }
-  };
+  }
 
-
-  /** Returns Promise.reject() with a SequelizeValidationError
+  /**
+   * Returns Promise.reject() with a SequelizeValidationError
    * @param {Error|String} errors
    * @return {Function}
    */
@@ -232,8 +268,6 @@ export default class SequelizeField {
 
     path = this._fromPublic(path);
 
-    // If sizes are set, file is object, and string
-    // otherwise
     if (this._SIZES) {
        this._forEachSize(this._SIZES, (name, options) => {
         const path = pathWithSize(path, name);
@@ -381,8 +415,7 @@ export default class SequelizeField {
    * @return {Promise<, Error> | undefined}
    */
 
-  _attachFile(instance, file) {
-    return new Promise((resolve, reject) => {
+  _attachFile(instance, file, afterCreate) {
       if (!new RegExp(this._MIMETYPE).test(file.mimetype)) {
 
         /* Remove bad temporary */
@@ -402,24 +435,31 @@ export default class SequelizeField {
 
       const isImage = /image/.test(file.mimetype);
 
-      instance.setDataValue(
-        this._PATH_ATTRIBUTE_NAME,
-        this._publicPath(file.path)
-      );
+      let promise = new Promise((resolve) => {
+        instance.setDataValue(
+          this._PATH_ATTRIBUTE_NAME,
+          this._publicPath(file.path)
+        );
+        resolve(instance);
+      });
+
+      if (afterCreate) {
+        promise = instance.update({
+          [this._PATH_ATTRIBUTE_NAME]: this._publicPath(file.path)
+        });
+      }
 
       instance.setDataValue(
         this._VIRTUAL_ATTRIBUTE_NAME,
-        this._publicPath(file.path)
+        { updated: true }
       );
 
-      if (this._SIZES && isImage) {
-        return this._processImage(instance, file)
-        .then(() => resolve())
-        .catch(err => reject(err))
-      }
-
-      resolve();
-    });
+      return promise
+      .then(instance => {
+        if (this._SIZES && isImage) {
+          return this._processImage(instance, file)
+        }
+      })
   };
 
 
@@ -462,6 +502,7 @@ export default class SequelizeField {
     * @param {String} path - path in package folder, ex. public/uplods
     * @return {String} publicPath - path in public folder, ex. /uploads
     */
+
    _publicPath(path) {
      return path.replace(
        new RegExp('^' +
@@ -470,9 +511,11 @@ export default class SequelizeField {
    }
 
    /** Get path relative to package folder
-    * @param {String} path - path in public folder with leading root, ex. /uploads
+    * @param {String} path - path in public folder with leading root,
+    *                        ex. /uploads
     * @return {String} publicPath - path in package folder, ex. public/uplods
     */
+
    _fromPublic(path) {
      return `${this._PUBLIC_PATH}${path}`;
    }
@@ -518,8 +561,8 @@ export default class SequelizeField {
       );
     }
 
-    Model.afterCreate(this._setFileHook);
-    Model.beforeUpdate(this._setFileHook);
+    Model.afterCreate(this._afterCreateHook);
+    Model.beforeUpdate(this._beforeUpdateHook);
     Model.beforeDestroy(this._destroyFileHook);
   };
 
@@ -613,7 +656,10 @@ function validateType(obj, type) {
   const entity = obj[name];
   let valid = typeCheck(type, entity);
   if (!valid) {
-    throw new TypeError(`Expected ${name} to be of type ${type}, but got ${getType(entity)}`);
+    throw new TypeError(
+      `Expected ${name} to be of type ${type},` +
+      ` but got ${getType(entity)}`
+    );
   }
   return valid;
 }
