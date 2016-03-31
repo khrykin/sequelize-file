@@ -471,7 +471,10 @@ describe('SequelizeFileField', () => {
       it('should resize file', () => {
         return Model
           .create({ pic: URL })
-          .then(({ id }) => Model.findById(id))
+          .then(({ id }) => {
+            console.log(id);
+            return Model.findById(id);
+          })
           .then(instance => {
             expect(instance.picPath).toBeA('string');
             expect(instance.pic).toBeA('object');
@@ -481,7 +484,7 @@ describe('SequelizeFileField', () => {
               big: pathWithSize(instance.picPath, 'big'),
             });
 
-              return fileExists(instance.picPath)
+              return fileExists(instance.pic.original)
               .then(exists => {
                 expect(exists).toEqual(true);
                 return fileExists(pathWithSize(instance.picPath, 'small'))

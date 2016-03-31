@@ -209,7 +209,7 @@ export default class SequelizeField {
       .then(file => {
         return this._attachFile(instance, file, afterCreate);
       })
-      .catch(err => this._validationError(err));
+      .catch(err => this._Error(err));
 
     } else if (typeof file === 'string') {
 
@@ -223,7 +223,7 @@ export default class SequelizeField {
       .then(file => {
         return this._attachFile(instance, file, afterCreate);
       })
-      .catch(err => this._validationError(err));
+      .catch(err => this._Error(err))
 
     } else if (typeOf(file) === 'Null'){
       instance.setDataValue(this._PATH_ATTRIBUTE_NAME, null);
@@ -254,6 +254,10 @@ export default class SequelizeField {
 
     const error = new ValidationError(message, [validationError]);
     return Promise.reject(error)
+  }
+
+  _Error(error) {
+    return Promise.reject(error);
   }
 
   /** Sequelize hook with files deleting logic

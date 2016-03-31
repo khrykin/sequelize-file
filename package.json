@@ -31,7 +31,8 @@
     "mv": "^2.1.1",
     "pluralize": "^1.2.1",
     "request": "^2.69.0",
-    "type-check": "^0.3.2"
+    "type-check": "^0.3.2",
+    "sequelize": "^3.20.0"
   },
   "devDependencies": {
     "babel-core": "^6.7.4",
@@ -39,7 +40,6 @@
     "babel-preset-stage-0": "^6.5.0",
     "babel-register": "^6.7.2",
     "expect": "^1.16.0",
-    "sequelize": "^3.20.0",
     "sqlite3": "^3.1.2"
   }
 }
