@@ -21,6 +21,7 @@ const DEFAULT_OPTIONS = {
 };
 
 const TMP_FOLDER = 'public/uploads/sequelize-file-field-tmp';
+const TEST_IMAGE_PATH = path.resolve(__dirname, 'Lenna.png');
 
 const FILE = {
   path: `${TMP_FOLDER}/Lenna.png`,
@@ -121,30 +122,29 @@ describe('SequelizeFileField', () => {
 
   describe('behaviour', () => {
     before(done => {
-      exec(`mkdir -p ${TMP_FOLDER}`, ( err, stdout, stderr ) => {
+      exec(`mkdir -p ${TMP_FOLDER}`, err => {
         // if (err) console.log(err);
         done();
       });
     });
 
     after(done => {
-      exec(`rm -r ${TMP_FOLDER}`, ( err, stdout, stderr ) => {
+      exec(`rm -r ${TMP_FOLDER}`, err => {
         // if (err) console.log(err);
         done();
       });
     });
 
     beforeEach(done => {
-      const testImagePath = path.resolve(__dirname, 'Lenna.png');
       exec(
-        `cp ${testImagePath} ${FILE.path}`, ( err, stdout, stderr ) => {
+        `cp ${TEST_IMAGE_PATH} ${FILE.path}`, err => {
         // if (err) console.log(err);
         done();
       });
     });
 
     afterEach(done => {
-      exec( 'rm -r public/uploads/models', ( err, stdout, stderr ) => {
+      exec( 'rm -r public/uploads/models', err => {
         // if (err) console.log(err);
         done();
       });
@@ -341,6 +341,7 @@ describe('SequelizeFileField', () => {
         it('should delete image if attribute is null', () => {
           return Model
             .create({ pic: FILE })
+            .then()
             .then(({ id }) => Model.findById(id))
             .then(instance => {
               return fileExists(instance.pic)
@@ -400,7 +401,12 @@ describe('SequelizeFileField', () => {
              .create({ pic: FILE })
              .then(({ id }) => Model.findById(id))
              .then(instance => {
-               return instance.update({ pic: BAD_FILE })
+               return new Promise((resolve, reject) => {
+                 exec(`cp ${TEST_IMAGE_PATH} ${FILE.path}`, err => {
+                   resolve();
+                 });
+               })
+               .then(() => instance.update({ pic: BAD_FILE }));
              })
              .then(instance => {
                throw "Promise resolved when it shoudn't";
@@ -431,6 +437,7 @@ describe('SequelizeFileField', () => {
                expect(error.errors.length).toEqual(1);
                expect(error.errors[0]).toBeA(ValidationErrorItem);
                expect(error.errors[0].path).toEqual('pic');
+               expect(error.errors[0].message).toInclude('404: Not Found')
                return inst.update({ pic: INVALID_URL })
              })
              .catch(error => {

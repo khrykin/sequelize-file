@@ -220,6 +220,9 @@ export default class SequelizeField {
           `/${nameFromUrl(url)}`;
 
       return download(url, filename)
+      .catch(error => this._Error(
+        this._validationError(error)
+      ))
       .then(file => {
         return this._attachFile(instance, file, afterCreate);
       })
@@ -252,8 +255,7 @@ export default class SequelizeField {
       this._VIRTUAL_ATTRIBUTE_NAME
     );
 
-    const error = new ValidationError(message, [validationError]);
-    return Promise.reject(error)
+    return new ValidationError(message, [validationError]);
   }
 
   _Error(error) {
@@ -429,8 +431,8 @@ export default class SequelizeField {
           }
         });
 
-        reject(
-          new Error(
+        throw (
+          this._validationError(
             this._WRONG_TYPE_MESSAGE || `Wrong file MIME type: ` +
             `should be ${mimetype}, but got ${file.type}`
           )
