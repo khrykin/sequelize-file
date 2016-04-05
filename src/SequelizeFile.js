@@ -146,10 +146,6 @@ export default class SequelizeField {
 
     if (( file && file.updated ) || typeof file === 'undefined') return;
 
-    if (this._CLEANUP_IS_ON) {
-      this._destroyFileHook(instance, options);
-    }
-
     if (
          typeOf(file)         === 'Object'
       && typeof file.mimetype === 'string'
@@ -178,6 +174,9 @@ export default class SequelizeField {
       .catch(err => this._Error(err))
 
     } else if (typeOf(file) === 'Null'){
+      if (this._CLEANUP_IS_ON) {
+        this._destroyFileHook(instance, options);
+      }
       instance.setDataValue(this._PATH_ATTRIBUTE_NAME, null);
     }
   }
@@ -228,14 +227,15 @@ export default class SequelizeField {
         const path = pathWithSize(base, name);
         fs.stat(path, (err, stat) => {
           if (!err) {
+
             fs.unlink(path);
           }
         });
       });
     } else {
-      fs.stat(path, (err, stat) => {
+      fs.stat(base, (err, stat) => {
         if (!err) {
-          fs.unlink(path);
+          fs.unlink(base);
         }
       });
     }
@@ -390,6 +390,10 @@ export default class SequelizeField {
             `should be ${mimetype}, but got ${file.type}`
           )
         );
+      }
+
+      if (this._CLEANUP_IS_ON) {
+        this._destroyFileHook(instance, options);
       }
 
       const isImage = /image/.test(file.mimetype);

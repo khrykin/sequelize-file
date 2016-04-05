@@ -1,3 +1,5 @@
 node_modules
+test/db.test.sqlite
+npm-debug.log
 public
 .DS_Store
