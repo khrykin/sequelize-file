@@ -346,19 +346,21 @@ export default class SequelizeField {
     return getSize(file.path)
     .then(({ width, height }) => {
       let gmi = gm(file.path);
-      if (this._CROP_IS_ON && crop) {
-        let crop = getDataValue(this._CROP_ATTRIBUTE_NAME);
+      if (this._CROP_IS_ON) {
+        let crop = instance.getDataValue(this._CROP_ATTRIBUTE_NAME);
+        if (!crop) return ;
+
         /** Crop's props are implied to be in percents
          * - we need absolutes
          */
         crop = {
-          width:  width   *  crop.width,
-          height: height  *  crop.height,
-          x:      width   *  crop.x,
-          y:      height  *  crop.y,
+          width:  width   *  (Number(crop.width) || 1),
+          height: height  *  (Number(crop.height) || 1),
+          x:      width   *  Number(crop.x),
+          y:      height  *  Number(crop.y),
         };
 
-        gmi = gmi.crop(crop);
+        gmi = gmi.crop(crop.width, crop.height, crop.x, crop.y);
       }
       return this._resizeAll(gmi, file.path)
     });

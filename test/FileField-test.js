@@ -144,7 +144,7 @@ describe('SequelizeFileField', () => {
     describe("when attribute and mimetype are set", () => {
 
       before(() => {
-        const { attrs, addTo }
+        const { addTo }
           = new SequelizeFileField(DEFAULT_OPTIONS);
 
         Model = sequelize.define('model', {
@@ -292,7 +292,7 @@ describe('SequelizeFileField', () => {
         });
 
         it('should cleanup when cleanup is true', done => {
-          const { attrs, addTo }
+          const { addTo }
             = new SequelizeFileField({
               ...DEFAULT_OPTIONS,
               cleanup: true
@@ -445,7 +445,7 @@ describe('SequelizeFileField', () => {
 
     describe('post-processing', () => {
       before(() => {
-        const { attrs, addTo }
+        const { addTo }
           = new SequelizeFileField({
             ...DEFAULT_OPTIONS,
             sizes: {
@@ -464,11 +464,10 @@ describe('SequelizeFileField', () => {
         return sequelize.sync({ force: true });
       });
 
-      it('should resize file', () => {
+      it('should resize', () => {
         return Model
           .create({ pic: URL })
           .then(({ id }) => {
-            console.log(id);
             return Model.findById(id);
           })
           .then(instance => {
@@ -504,6 +503,71 @@ describe('SequelizeFileField', () => {
             })
             .catch(err => Promise.reject(err))
             ;
+      });
+
+      it('should crop', () => {
+        const { addTo }
+          = new SequelizeFileField({
+            ...DEFAULT_OPTIONS,
+            sizes: {
+              small: 64,
+              big: "x300"
+            },
+            crop: true
+          });
+
+        Model = sequelize.define('model', {
+          name: STRING,
+        });
+
+        addTo(Model);
+        return Model
+          .create({
+            pic: URL,
+            picCrop: {
+              x: 0.5,
+              y: 0.5,
+              width: 0.5,
+              height: 0.5
+            }
+          })
+          .then(({ id }) => {
+            return Model.findById(id);
+          })
+          .then(instance => {
+            expect(instance.picPath).toBeA('string');
+            expect(instance.pic).toBeA('object');
+            expect(instance.pic).toInclude({
+              original: instance.picPath,
+              small: pathWithSize(instance.picPath, 'small'),
+              big: pathWithSize(instance.picPath, 'big'),
+            });
+
+              return fileExists(instance.pic.original)
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return fileExists(pathWithSize(instance.picPath, 'small'))
+              })
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return getSize('public' + pathWithSize(instance.picPath, 'small'))
+              })
+              .then(({ width, height }) => {
+                expect(width).toEqual(64);
+                return fileExists(pathWithSize(instance.picPath, 'big'))
+              })
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return getSize('public' + pathWithSize(instance.picPath, 'big'))
+              })
+              .then(({ width, height }) => {
+                expect(height).toEqual(300);
+              })
+              .catch(err => Promise.reject(err))
+            })
+            .catch(err => Promise.reject(err))
+            ;
+
       });
 
     });
