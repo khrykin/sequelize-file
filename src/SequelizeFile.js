@@ -144,10 +144,7 @@ export default class SequelizeField {
   _setFile(instance, options, afterCreate) {
     const file = instance.getDataValue(this._VIRTUAL_ATTRIBUTE_NAME);
 
-    if (
-      ( file && file.updated ) ||
-      typeof file === 'undefined'
-    ) return ;
+    if (( file && file.updated ) || typeof file === 'undefined') return;
 
     if (this._CLEANUP_IS_ON) {
       this._destroyFileHook(instance, options);
@@ -224,11 +221,11 @@ export default class SequelizeField {
     let path = instance.getDataValue(this._PATH_ATTRIBUTE_NAME);
     if (!path) return;
 
-    path = this._fromPublic(path);
+    const base = this._fromPublic(path);
 
     if (this._SIZES) {
-       this._forEachSize(this._SIZES, (name, options) => {
-        const path = pathWithSize(path, name);
+       this._forEachSize(this._SIZES, (size, name, options) => {
+        const path = pathWithSize(base, name);
         fs.stat(path, (err, stat) => {
           if (!err) {
             fs.unlink(path);
@@ -339,7 +336,7 @@ export default class SequelizeField {
    * @param {Sequelize.Instance} instance
    * @param {Object} file
    * @param {String} file.path
-   * @return {Promise<Object, Error>} promise which resolves with size object
+   * @return {Promise}
    */
 
   _processImage(instance, file) {
