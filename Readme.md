@@ -48,14 +48,13 @@ import { picture, backgroundImage } from './attachments';
 let User = sequelize.define('user', {
   name: STRING,
   /* And all of your plain sequelize attributes... */
-  ...picture.attrs,
-  ...backgroundImage.attrs
 });
 
-picture.addHooksTo(User);
-backgroundImage.addHooksTo(User);
+picture.addTo(User);
+backgroundImage.addTo(User);
 
 export default User;
+
 ```
 Of course, you can share same attachments across multiple models.
 
@@ -63,28 +62,31 @@ After this, you'll be able to set files just as ordinary sequelize attributes. Y
 
 ```javascript
 
-// If you set url, file will be downloaded and saved
-let user1 = User.build({
-  picture: "http://example.com/somepic.jpg"
+sequelize.sync({ force: true }).then(() => {
+
+  // If you set url, file will be downloaded and saved
+  let user1 = User.build({
+    picture: "http://example.com/somepic.jpg"
+  });
+  user1.save();
+
+  // Or you can pass multer-style File object, for example
+  let user2 = User.build({
+    picture: "http://example.com/somepic2.jpg",
+    backgroundImage: {
+      path: '/uploads/tmp/somepic.jpg',
+      mimetype: 'image/jpeg'
+    }
+  });
+
+  user2.save();
+
+  // Deleting file(s)
+  .then(user2 => {
+    user2.update({ picture: null });
+  });
+
 });
-user1.save();
-
-// Or you can pass multer-style File object, for example
-let user2 = User.build({
-  picture: "http://example.com/somepic2.jpg",
-  backgroundImage: {
-    path: '/uploads/tmp/somepic.jpg',
-    mimetype: 'image/jpeg'
-  }
-});
-
-user2.save();
-
-// Deleting file(s)
-.then(user2 => {
-  user2.update({ picture: null });
-});
-
 
 ```
 You access all of your resized images through dot notation. If you didn't setup resizing, you'll get original file.
@@ -102,4 +104,4 @@ User.findById(1)
 
 ## Status
 
-This package is under early development. Do not use it yet!
+This package is under early development. Do use it with caution!

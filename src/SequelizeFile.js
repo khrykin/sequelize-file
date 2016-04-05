@@ -11,8 +11,10 @@ import {
   STRING,
   VIRTUAL,
   ValidationError,
-  ValidationErrorItem
+  ValidationErrorItem,
+  Utils
 } from "sequelize";
+
 
 import pluralize from "pluralize";
 import request from 'request';
@@ -26,50 +28,6 @@ import escapeStringRegexp from 'escape-string-regexp';
 const gm = graphicsMagick.subClass({ imageMagick: true });
 
 const DEFAULT_QUALITY = 100;
-
-/**
- * @example
- *  const picture = SequelizeFileField({
- *    attribute: 'picture',
- *    mimetype: /image/,
- *    crop: true,
- *    folderKey: 'slug',
- *    sizes: {
- *      small: 64,
- *      big: "150x350",
- *    }
- *  });
- *
- *  const backgroundImage = SequelizeFileField({
- *    attribute: 'backgroundImage',
- *    mimetype: /image/,
- *    crop: true,
- *    folderKey: 'slug',
- *    sizes: {
- *      preview: "x350"
- *    }
- *  });
- *
- *  let User = sequelize.define('user', {
- *    name: STRING,
- *    ...picture.attrs,
- *    ...backgroundImage.attrs
- *  });
- *
- *  picture.addHooksTo(User);
- *  backgroundImage.addHooksTo(User);
- *
- *  // Url will be downloaded
- *  let user1 = User.build({ picture: "http://example.com/somepic.jpg" });
- *
- *  // Or you can pass multer-style File object, for example
- *  let user2 = User.build({ picture: {
- *       path: '/uploads/tmp/somepic.jpg',
- *       mimetype: 'image/jpeg'
- *    }
- *  });
- *
- */
 
 export default class SequelizeField {
 
@@ -106,7 +64,7 @@ export default class SequelizeField {
    * @param   {String} [options.cleanup=false] - If true, old files will be
    *                    deleted, when you update corresponding field
    *
-   * @return  {attrs:Object, addHooksTo:Function}
+   * @return  { addTo:Function } - Instance with addTo method
    */
 
   constructor({
@@ -150,11 +108,7 @@ export default class SequelizeField {
     this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
     this._FOLDER_KEY             = folderKey || 'id';
     this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
-
-    /* --- PUBLIC PROPS --------------------------------------------------- */
-
-    this.attrs = this._getAttrs();
-  }
+}
 
 
   /**
@@ -165,7 +119,7 @@ export default class SequelizeField {
    */
 
   _beforeUpdateHook = (instance, options) => {
-    return this._setFile(instance, options)
+    return this._setFile(instance, options);
   };
 
   /**
@@ -207,7 +161,7 @@ export default class SequelizeField {
 
       return this._moveFromTemporary(file, instance)
       .then(file => {
-        return this._attachFile(instance, file, afterCreate);
+        return this._attachFile(instance, file, afterCreate, options);
       })
       .catch(err => this._Error(err));
 
@@ -220,11 +174,9 @@ export default class SequelizeField {
           `/${nameFromUrl(url)}`;
 
       return download(url, filename)
-      .catch(error => this._Error(
-        this._validationError(error)
-      ))
+      .catch(error => this._Error(this._validationError(error)))
       .then(file => {
-        return this._attachFile(instance, file, afterCreate);
+        return this._attachFile(instance, file, afterCreate, options);
       })
       .catch(err => this._Error(err))
 
@@ -418,10 +370,12 @@ export default class SequelizeField {
    * @param {Object} file
    * @param {String} file.path
    * @param {String} file.mimetype
+   * @param {Boolean} afterCreate
+   * @param {Object} options - sequelize hook options
    * @return {Promise<, Error> | undefined}
    */
 
-  _attachFile(instance, file, afterCreate) {
+  _attachFile(instance, file, afterCreate, options) {
       if (!new RegExp(this._MIMETYPE).test(file.mimetype)) {
 
         /* Remove bad temporary */
@@ -452,7 +406,7 @@ export default class SequelizeField {
       if (afterCreate) {
         promise = instance.update({
           [this._PATH_ATTRIBUTE_NAME]: this._publicPath(file.path)
-        });
+        }, options);
       }
 
       instance.setDataValue(
@@ -460,12 +414,13 @@ export default class SequelizeField {
         { updated: true }
       );
 
+
       return promise
       .then(instance => {
         if (this._SIZES && isImage) {
-          return this._processImage(instance, file)
+          return this._processImage(instance, file);
         }
-      })
+      });
   };
 
 
@@ -526,51 +481,68 @@ export default class SequelizeField {
      return `${this._PUBLIC_PATH}${path}`;
    }
 
+   /** Sets neccesary attributes on Model
+    * @param {Sequelize.Model} Model
+    */
+
+   _addAttrsTo(Model) {
+     Utils.mergeDefaults(Model.rawAttributes, this._getAttrs());
+     Model.refreshAttributes();
+   }
+
+   /** Sets neccesary hooks on Model
+    * @param {Sequelize.Model} Model
+    */
+
+   _addHooksTo = (Model) => {
+     const {
+       _VIRTUAL_ATTRIBUTE_NAME,
+       _PATH_ATTRIBUTE_NAME,
+       _CROP_IS_ON,
+       _CROP_ATTRIBUTE_NAME,
+
+       _PUBLIC_PATH,
+      } = this;
+
+     const modelFolder = `${pluralize(Model.name.toLowerCase())}` +
+     `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
+
+     this._BASEPATH = `${this._BASEPATH}/${modelFolder}`;
+
+     if (!Model.attributes[_VIRTUAL_ATTRIBUTE_NAME]) {
+       throw new Error(
+         `Can\'t find ${_VIRTUAL_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
+       );
+     }
+
+     if (!Model.attributes[_PATH_ATTRIBUTE_NAME]) {
+       throw new Error(
+         `Can\'t find ${_PATH_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
+       );
+     }
+
+     if (_CROP_IS_ON && !Model.attributes[_CROP_ATTRIBUTE_NAME]) {
+       throw new Error(
+         `Can\'t find ${_CROP_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
+       );
+     }
+
+     Model.afterCreate(this._afterCreateHook);
+     Model.beforeUpdate(this._beforeUpdateHook);
+     Model.beforeDestroy(this._destroyFileHook);
+   };
 
   /* --- PUBLIC API ------------------------------------------------------- */
 
-
-  /** Sets neccesary hooks on Model
+  /** Sets neccesary attributes and hooks on Model
    * @param {Sequelize.Model} Model
    */
 
-  addHooksTo = (Model) => {
-    const {
-      _VIRTUAL_ATTRIBUTE_NAME,
-      _PATH_ATTRIBUTE_NAME,
-      _CROP_IS_ON,
-      _CROP_ATTRIBUTE_NAME,
+  addTo = (Model) => {
+    this._addAttrsTo(Model);
+    this._addHooksTo(Model);
+  }
 
-      _PUBLIC_PATH,
-     } = this;
-
-    const modelFolder = `${pluralize(Model.name.toLowerCase())}` +
-    `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
-
-    this._BASEPATH = `${this._BASEPATH}/${modelFolder}`;
-
-    if (!Model.attributes[_VIRTUAL_ATTRIBUTE_NAME]) {
-      throw new Error(
-        `Can\'t find ${_VIRTUAL_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
-      );
-    }
-
-    if (!Model.attributes[_PATH_ATTRIBUTE_NAME]) {
-      throw new Error(
-        `Can\'t find ${_PATH_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
-      );
-    }
-
-    if (_CROP_IS_ON && !_Model.attributes[_CROP_ATTRIBUTE_NAME]) {
-      throw new Error(
-        `Can\'t find ${_CROP_ATTRIBUTE_NAME} in ${Model.name}'s attributes`
-      );
-    }
-
-    Model.afterCreate(this._afterCreateHook);
-    Model.beforeUpdate(this._beforeUpdateHook);
-    Model.beforeDestroy(this._destroyFileHook);
-  };
 
 }
 

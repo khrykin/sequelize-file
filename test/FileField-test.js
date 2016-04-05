@@ -11,7 +11,7 @@ import path from 'path';
 import { exec } from 'child_process';
 
 import sequelize from './sequelize';
-import SequelizeFileField, { pathWithSize, getSize } from '../lib/SequelizeFile';
+import SequelizeFileField, { pathWithSize, getSize } from '../src/SequelizeFile';
 
 let Model;
 
@@ -50,64 +50,54 @@ function fileExists(path) {
 
 describe('SequelizeFileField', () => {
 
-  describe('attrs', () => {
+
+  describe('addTo', () => {
     before(() => {
+      const { addTo }
+        = new SequelizeFileField(DEFAULT_OPTIONS);
+
       Model = sequelize.define('model', {
-        name: STRING,
+        name: STRING
       });
+
+      addTo(Model);
 
       return sequelize.sync({ force: true });
     });
 
-    it('shoud return STRING and VIRTUAL fields and set ' +
+
+    it('should add STRING and VIRTUAL fields and set ' +
        'getter on virtual', () => {
 
-      const { attrs }
-        = new SequelizeFileField(DEFAULT_OPTIONS);
+      console.log('Model');
+      console.log(Model._rawAttributes);
 
-      expect(attrs.pic)
-      .toInclude({
-        type: VIRTUAL
-      });
+      expect(Model.attributes.pic)
+      .toExist();
 
-      expect(attrs.pic.get)
+      expect(Model.attributes.pic.get)
       .toBeA('function');
 
-      expect(attrs.picPath)
-      .toInclude({
-        type: STRING(1234),
-        allowNull: true
-      });
+      expect(Model.attributes.picPath)
+      .toExist();
     });
 
-    it('shoud return VIRTUAL field for crop if options.crop is ' +
+    it('should add VIRTUAL field for crop if options.crop is ' +
        'true ', () => {
 
-      const { attrs } = new SequelizeFileField({
+      const { addTo } = new SequelizeFileField({
         ...DEFAULT_OPTIONS,
         crop: true
       });
 
-      expect(attrs.picCrop)
-      .toInclude({ type: VIRTUAL });
-    });
-
-  });
-
-
-  describe('setHooks', () => {
-    before(() => {
-      const { attrs, addHooksTo }
-        = new SequelizeFileField(DEFAULT_OPTIONS);
-
       Model = sequelize.define('model', {
-        name: STRING,
-        ...attrs
+        name: STRING
       });
 
-      addHooksTo(Model);
+      addTo(Model);
 
-      return sequelize.sync({ force: true });
+      expect(Model.attributes.picCrop)
+      .toExist();
     });
 
     it('should add hooks to Model', () => {
@@ -118,6 +108,7 @@ describe('SequelizeFileField', () => {
       expect(Model.hasHook('beforeDestroy'))
       .toEqual(true);
     });
+
   });
 
   describe('behaviour', () => {
@@ -153,15 +144,14 @@ describe('SequelizeFileField', () => {
     describe("when attribute and mimetype are set", () => {
 
       before(() => {
-        const { attrs, addHooksTo }
+        const { attrs, addTo }
           = new SequelizeFileField(DEFAULT_OPTIONS);
 
         Model = sequelize.define('model', {
           name: STRING,
-          ...attrs
         });
 
-        addHooksTo(Model);
+        addTo(Model);
 
         return sequelize.sync({ force: true });
       });
@@ -302,7 +292,7 @@ describe('SequelizeFileField', () => {
         });
 
         it('should cleanup when cleanup is true', done => {
-          const { attrs, addHooksTo }
+          const { attrs, addTo }
             = new SequelizeFileField({
               ...DEFAULT_OPTIONS,
               cleanup: true
@@ -310,10 +300,9 @@ describe('SequelizeFileField', () => {
 
           Model = sequelize.define('model', {
             name: STRING,
-            ...attrs
           });
 
-          addHooksTo(Model);
+          addTo(Model);
 
           return Model
             .create({ pic: FILE })
@@ -456,7 +445,7 @@ describe('SequelizeFileField', () => {
 
     describe('post-processing', () => {
       before(() => {
-        const { attrs, addHooksTo }
+        const { attrs, addTo }
           = new SequelizeFileField({
             ...DEFAULT_OPTIONS,
             sizes: {
@@ -467,10 +456,10 @@ describe('SequelizeFileField', () => {
 
         Model = sequelize.define('model', {
           name: STRING,
-          ...attrs
+
         });
 
-        addHooksTo(Model);
+        addTo(Model);
 
         return sequelize.sync({ force: true });
       });
