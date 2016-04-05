@@ -36,7 +36,7 @@ export const backgroundImage = SequelizeFile({
 });
 
 ```
-Then, you extract necessary attributes and hooks and attach them to your model. Using ES7's object rest spread, it will look like this:
+Then, you attach enhanced attributes to your model:
 
 ```javascript
 /* models/User.js */
