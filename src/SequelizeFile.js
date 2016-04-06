@@ -220,11 +220,11 @@ export default class SequelizeField {
     let path = instance.getDataValue(this._PATH_ATTRIBUTE_NAME);
     if (!path) return;
 
-    const base = this._fromPublic(path);
+    const original = this._fromPublic(path);
 
     if (this._SIZES) {
        this._forEachSize(this._SIZES, (size, name, options) => {
-        const path = pathWithSize(base, name);
+        const path = pathWithSize(original, name);
         fs.stat(path, (err, stat) => {
           if (!err) {
 
@@ -232,13 +232,13 @@ export default class SequelizeField {
           }
         });
       });
-    } else {
-      fs.stat(base, (err, stat) => {
-        if (!err) {
-          fs.unlink(base);
-        }
-      });
     }
+    
+    fs.stat(original, (err, stat) => {
+      if (!err) {
+        fs.unlink(original);
+      }
+    });
   };
 
 

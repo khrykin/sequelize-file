@@ -56,7 +56,7 @@ backgroundImage.addTo(User);
 export default User;
 
 ```
-Of course, you can share same attachments across multiple models.
+Of course, you can share same attachments rules across multiple models.
 
 After this, you'll be able to set files just as ordinary sequelize attributes. You can attach files either as urls (they will be downloaded), or as pre-downloaded [multer](https://github.com/expressjs/multer)-style objects (basically, only `path` and `mimetype` props are required)
 
