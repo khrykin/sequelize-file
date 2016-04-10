@@ -505,7 +505,7 @@ describe('SequelizeFileField', () => {
             ;
       });
 
-      it('should crop', () => {
+      it('should crop when crop attribute is set', () => {
         const { addTo }
           = new SequelizeFileField({
             ...DEFAULT_OPTIONS,
@@ -530,6 +530,65 @@ describe('SequelizeFileField', () => {
               width: 0.5,
               height: 0.5
             }
+          })
+          .then(({ id }) => {
+            return Model.findById(id);
+          })
+          .then(instance => {
+            expect(instance.picPath).toBeA('string');
+            expect(instance.pic).toBeA('object');
+            expect(instance.pic).toInclude({
+              original: instance.picPath,
+              small: pathWithSize(instance.picPath, 'small'),
+              big: pathWithSize(instance.picPath, 'big'),
+            });
+
+              return fileExists(instance.pic.original)
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return fileExists(pathWithSize(instance.picPath, 'small'))
+              })
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return getSize('public' + pathWithSize(instance.picPath, 'small'))
+              })
+              .then(({ width, height }) => {
+                expect(width).toEqual(64);
+                return fileExists(pathWithSize(instance.picPath, 'big'))
+              })
+              .then(exists => {
+                expect(exists).toEqual(true);
+                return getSize('public' + pathWithSize(instance.picPath, 'big'))
+              })
+              .then(({ width, height }) => {
+                expect(height).toEqual(300);
+              })
+              .catch(err => Promise.reject(err))
+            })
+            .catch(err => Promise.reject(err))
+            ;
+
+      });
+
+      it('should crop when crop attribute isn\'t set', () => {
+        const { addTo }
+          = new SequelizeFileField({
+            ...DEFAULT_OPTIONS,
+            sizes: {
+              small: 64,
+              big: "x300"
+            },
+            crop: true
+          });
+
+        Model = sequelize.define('model', {
+          name: STRING,
+        });
+
+        addTo(Model);
+        return Model
+          .create({
+            pic: URL
           })
           .then(({ id }) => {
             return Model.findById(id);

@@ -153,10 +153,10 @@ export default class SequelizeField {
     ) {
 
       return this._moveFromTemporary(file, instance)
-      .then(file => {
-        return this._attachFile(instance, file, afterCreate, options);
-      })
-      .catch(err => this._Error(err));
+        .then(file => {
+          return this._attachFile(instance, file, afterCreate, options);
+        })
+        .catch(err => this._Error(err));
 
     } else if (typeof file === 'string') {
 
@@ -167,11 +167,11 @@ export default class SequelizeField {
           `/${nameFromUrl(url)}`;
 
       return download(url, filename)
-      .catch(error => this._Error(this._validationError(error)))
-      .then(file => {
-        return this._attachFile(instance, file, afterCreate, options);
-      })
-      .catch(err => this._Error(err))
+        .catch(error => this._Error(this._validationError(error)))
+        .then(file => {
+          return this._attachFile(instance, file, afterCreate, options);
+        })
+        .catch(err => this._Error(err))
 
     } else if (typeOf(file) === 'Null'){
       if (this._CLEANUP_IS_ON) {
@@ -233,7 +233,7 @@ export default class SequelizeField {
         });
       });
     }
-    
+
     fs.stat(original, (err, stat) => {
       if (!err) {
         fs.unlink(original);
@@ -345,19 +345,20 @@ export default class SequelizeField {
       let gmi = gm(file.path);
       if (this._CROP_IS_ON) {
         let crop = instance.getDataValue(this._CROP_ATTRIBUTE_NAME);
-        if (!crop) return ;
+        if (crop) {
 
-        /** Crop's props are implied to be in percents
-         * - we need absolutes
-         */
-        crop = {
-          width:  width   *  (Number(crop.width) || 1),
-          height: height  *  (Number(crop.height) || 1),
-          x:      width   *  Number(crop.x),
-          y:      height  *  Number(crop.y),
-        };
+          /** Crop's props are implied to be in percents
+           * - we need absolutes
+           */
+          crop = {
+            width:  width   *  (Number(crop.width) || 1),
+            height: height  *  (Number(crop.height) || 1),
+            x:      width   *  Number(crop.x),
+            y:      height  *  Number(crop.y),
+          };
 
-        gmi = gmi.crop(crop.width, crop.height, crop.x, crop.y);
+          gmi = gmi.crop(crop.width, crop.height, crop.x, crop.y);
+        }
       }
       return this._resizeAll(gmi, file.path)
     });
@@ -398,7 +399,7 @@ export default class SequelizeField {
 
       const isImage = /image/.test(file.mimetype);
 
-      let promise = new Promise((resolve) => {
+      let promise = new Promise(resolve => {
         instance.setDataValue(
           this._PATH_ATTRIBUTE_NAME,
           this._publicPath(file.path)
