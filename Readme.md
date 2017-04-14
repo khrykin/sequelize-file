@@ -104,4 +104,5 @@ User.findById(1)
 
 ## Status
 
-This package is under early development. Do use it with caution!
+This package is under early development. Do use it with caution! 
+Check out [tests](https://github.com/khrykin/sequelize-file/blob/master/test/FileField-test.js) to see what is currently working.
