@@ -77,6 +77,7 @@ export default class SequelizeField {
       publicPath,
       cleanup,
       folderKey,
+      groupByAttribute,
       wrongTypeMessage
     }) {
     /* --- VALIDATIONS ---------------------------------------------------- */
@@ -86,7 +87,8 @@ export default class SequelizeField {
     validateType({ mimetype },        'String | RegExp');
     validateType({ crop },            'Boolean | Undefined');
     validateType({ cleanup },         'Boolean | Undefined');
-    validateType({ folderKey },       'String | Undefined');
+    validateType({ folderKey },       'String | Undefined | Null');
+    validateType({ groupByAttribute },       'Boolean | Undefined');
     validateType({ sizes },           'Object | String | Undefined');
 
     if ((crop || sizes ) && !/image/.test(mimetype)) {
@@ -107,6 +109,8 @@ export default class SequelizeField {
     this._PUBLIC_PATH            = publicPath || 'public';
     this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
     this._FOLDER_KEY             = folderKey === null ? null : (folderKey || 'id');
+    this._GROUP_BY_ATTRIBUTE     = typeof groupByAttribute === undefined ? true : groupByAttribute;
+
     this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
 }
 
@@ -511,7 +515,8 @@ export default class SequelizeField {
      const modelFolder = `${pluralize(Model.name.toLowerCase())}` +
      `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
 
-     this._BASEPATH = `${this._BASEPATH}/${modelFolder}`;
+     this._BASEPATH =  this._GROUP_BY_ATTRIBUTE ?
+      `${this._BASEPATH}/${modelFolder}` : this._BASEPATH;
 
      if (!Model.attributes[_VIRTUAL_ATTRIBUTE_NAME]) {
        throw new Error(
