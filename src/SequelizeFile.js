@@ -106,7 +106,7 @@ export default class SequelizeField {
     this._CLEANUP_IS_ON          = !!cleanup;
     this._PUBLIC_PATH            = publicPath || 'public';
     this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
-    this._FOLDER_KEY             = folderKey || 'id';
+    this._FOLDER_KEY             = folderKey === null ? null : (folderKey || 'id');
     this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
 }
 
@@ -163,8 +163,8 @@ export default class SequelizeField {
       const url = file;
       const foldername = instance.getDataValue(this._FOLDER_KEY);
       const filename
-        = `${this._BASEPATH}/${foldername}` +
-          `/${nameFromUrl(url)}`;
+        = foldername ? `${this._BASEPATH}/${foldername}` +
+          `/${nameFromUrl(url)}` : `${this._BASEPATH}/${nameFromUrl(url)}`;
 
       return download(url, filename)
         .catch(error => this._Error(this._validationError(error)))
