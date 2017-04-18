@@ -276,9 +276,12 @@ describe('SequelizeFileField', () => {
             .then(({ id }) => Model.findById(id))
             .then(instance => {
               const oldPic = instance.pic;
+              console.log('oldPic', oldPic);
               instance.update({ pic: URL })
                 .then(newInstance => {
                   const newPic = instance.pic;
+                  console.log('newPic', newPic);
+
                   fs.stat('public' + newPic, (err, stat) => {
                     expect(err).toBeFalsy();
                     fs.stat('public' + oldPic, (err, stat) => {

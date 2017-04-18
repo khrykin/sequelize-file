@@ -157,10 +157,6 @@ export default class SequelizeField {
   _setFile(instance, options, afterCreate) {
     const file = instance.getDataValue(this._VIRTUAL_ATTRIBUTE_NAME);
 
-    const FileStorage = {
-      write: this._attachFile.bind(this)
-    }
-
     if (( file && file.updated ) || typeof file === 'undefined') return;
 
     if (
@@ -171,7 +167,7 @@ export default class SequelizeField {
 
       return this._moveFromTemporary(file, instance)
         .then(file => {
-          return FileStorage.write(instance, file, afterCreate, options);
+          return this._attachFile(instance, file, afterCreate, options);
         })
         .catch(err => this._Error(err));
 
@@ -183,7 +179,7 @@ export default class SequelizeField {
       return download(url, filename)
         .catch(error => this._Error(this._validationError(error)))
         .then(file => {
-          return FileStorage.write(instance, file, afterCreate, options);
+          return this._attachFile(instance, file, afterCreate, options);
         })
         .catch(err => this._Error(err))
 
@@ -416,7 +412,7 @@ _   * @return {String}
 
         /* Remove bad temporary */
 
-        fs.unlink(file.path, () => {});
+        // fs.unlink(file.path, () => {});
 
         throw (
           this._validationError(
@@ -442,7 +438,7 @@ _   * @return {String}
 
       if (afterCreate) {
         promise = instance.update({
-          [this._PATH_ATTRIBUTE_NAME]: this._publicPath(file.path)
+          [this._PATH_ATTRIBUTE_NAME]: this._publicPath(file.path) /* Storage.write().then(path => {}) */
         }, options);
       }
 
