@@ -135,7 +135,9 @@ describe('SequelizeFileField', () => {
       });
     }));
 
-    // it("")
+
+
+
 
     describe("when attribute and mimetype are set", () => {
 
@@ -157,7 +159,7 @@ describe('SequelizeFileField', () => {
         it('should set file from url', () => {
           return Model
             .create({ pic: URL })
-            .then(({ id }) => Model.findById(id))
+            .then(instance => instance.reload())
             .then(instance => {
               expect(typeof instance.pic).toBe('string');
               return fileExists(instance.pic)
@@ -624,7 +626,64 @@ describe('SequelizeFileField', () => {
       });
 
     });
-  
+
+
+    it("shouldn't group files by folderKey if folderKey is null", () => {
+      const { addTo }
+        = new SequelizeFileField({
+          ...DEFAULT_OPTIONS,
+          folderKey: null
+        });
+
+      let Model = sequelize.define('model', {
+        name: STRING,
+      });
+
+      addTo(Model);
+
+      return sequelize.sync({ force: true })
+      .then(() => {
+        return Model
+          .create({ pic: FILE })
+          .then(instance => instance.reload())
+          .then(instance => {
+            expect(typeof instance.pic).toBe('string');
+            expect(instance.pic).toMatch('/models/pics/Lenna')
+            expect(instance.pic).not.toMatch('/models/pics/Lenna.png')
+
+          })
+      });
+
+    });
+
+
+    it("shouldn't group files by attribute name and folderKey if " +
+       "groupByAttribute is false", () => {
+
+      const { addTo }
+        = new SequelizeFileField({
+          ...DEFAULT_OPTIONS,
+          groupByAttribute: false
+        });
+
+      let Model = sequelize.define('model', {
+        name: STRING,
+      });
+
+      addTo(Model);
+
+      return sequelize.sync({ force: true })
+      .then(() => {
+        return Model
+          .create({ pic: FILE })
+          .then(instance => instance.reload())
+          .then(instance => {
+            expect(typeof instance.pic).toBe('string');
+            expect(instance.pic).toMatch('/models/Lenna')
+            expect(instance.pic).not.toMatch('/models/Lenna.png')
+          })
+      });
+    });
 
   });
 });

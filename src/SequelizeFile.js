@@ -107,9 +107,9 @@ export default class SequelizeField {
     this._CROP_IS_ON             = !!crop;
     this._CLEANUP_IS_ON          = !!cleanup;
     this._PUBLIC_PATH            = publicPath || 'public';
-    this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
+    this._BASE_PATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
     this._FOLDER_KEY             = folderKey === null ? null : (folderKey || 'id');
-    this._GROUP_BY_ATTRIBUTE     = typeof groupByAttribute === undefined ?
+    this._GROUP_BY_ATTRIBUTE     = typeof groupByAttribute === 'undefined' ?
                                    true : groupByAttribute;
 
     this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
@@ -190,8 +190,8 @@ _   * @return {String}
    */
 
   _getInstancePath(instance) {
-    if (!this._FOLDER_KEY) return this._BASEPATH;
-    return `${this._BASEPATH}/${instance.getDataValue(this._FOLDER_KEY)}`;
+    if (!this._FOLDER_KEY || !this._GROUP_BY_ATTRIBUTE) return this._MODEL_PATH;
+    return `${this._MODEL_PATH}/${instance.getDataValue(this._FOLDER_KEY)}`;
   }
 
   /**
@@ -202,7 +202,15 @@ _   * @return {String}
    */
 
   _getFileNameForMoving(instance, tmp) {
-    return this._getInstancePath(instance) + `/${nameFromUrl(tmp)}`;
+    let fileName = nameFromUrl(tmp);
+
+    if (!this._FOLDER_KEY || !this._GROUP_BY_ATTRIBUTE) {
+      const [name, ext] = getFileInfo(fileName);
+      const hash = Math.random().toString(36).substr(2, 5);
+      fileName = name + `_${hash}.${ext}`;
+    };
+
+    return this._getInstancePath(instance) + `/${fileName}`;
   }
 
   /**
@@ -251,7 +259,6 @@ _   * @return {String}
         const path = pathWithSize(original, name);
         fs.stat(path, (err, stat) => {
           if (!err) {
-
             fs.unlink(path);
           }
         });
@@ -539,7 +546,7 @@ _   * @return {String}
        MODEL_FOLDER += `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
      }
 
-     this._BASEPATH = `${this._BASEPATH}/${MODEL_FOLDER}`;
+     this._MODEL_PATH = `${this._BASE_PATH}/${MODEL_FOLDER}`;
 
 
      if (!Model.attributes[_VIRTUAL_ATTRIBUTE_NAME]) {
@@ -697,6 +704,15 @@ function download(url, path) {
 
 function nameFromUrl(url) {
   return url.match(/\/([^\/]+)$/)[1];
+}
+
+
+function getFileInfo(file) {
+  const arr = file.split('.');
+  const ext = arr[arr.length - 1];
+  arr.splice(arr.length - 1, 1);
+  const name = arr.join('.')
+  return [name, ext];
 }
 
 export function pathWithSize(path, size) {
