@@ -2,10 +2,10 @@
 [![Travis](https://img.shields.io/travis/khrykin/sequelize-file.svg)](https://travis-ci.org/khrykin/sequelize-file)
 [![npm](https://img.shields.io/npm/v/sequelize-file.svg)](https://www.npmjs.com/package/sequelize-file)
 
-This package allows you to attach files to your sequelize instances as easy as you set your plain attributes, and define MIME type validation and post-processing rules next to your models.
+This package allows you to attach files to your sequelize instances as easy as you set your plain attributes and define MIME type validation and post-processing rules next to your models.
 
 ## Requirements
-By now you will need [ImageMagick](http://www.imagemagick.org/script/index.php) installed on your system. On OSX it's just one `brew install imagemagick` away.
+- [ImageMagick](http://www.imagemagick.org/script/index.php) (`brew install imagemagick` on OS X).
 
 
 ## Usage
@@ -56,7 +56,6 @@ backgroundImage.addTo(User);
 export default User;
 
 ```
-Of course, you can share same attachments rules across multiple models.
 
 After this, you'll be able to set files just as ordinary sequelize attributes. You can attach files either as urls (they will be downloaded), or as pre-downloaded [multer](https://github.com/expressjs/multer)-style objects (basically, only `path` and `mimetype` props are required)
 
@@ -68,6 +67,7 @@ sequelize.sync({ force: true }).then(() => {
   let user1 = User.build({
     picture: "http://example.com/somepic.jpg"
   });
+
   user1.save();
 
   // Or you can pass multer-style File object, for example
@@ -79,17 +79,15 @@ sequelize.sync({ force: true }).then(() => {
     }
   });
 
-  user2.save();
+  user2.save()
 
   // Deleting file(s)
-  .then(user2 => {
-    user2.update({ picture: null });
-  });
+  user2.update({ picture: null });
 
 });
 
 ```
-You access all of your resized images through dot notation. If you didn't setup resizing, you'll get original file.
+You access all of your resized images through dot notation. If you didn't setup resizing, you'll get a string path to attached file.
 
 ```javascript
 
@@ -104,5 +102,5 @@ User.findById(1)
 
 ## Status
 
-This package is under early development. Do use it with caution! 
+This package is under early development. Do use it with caution!
 Check out [tests](https://github.com/khrykin/sequelize-file/blob/master/test/FileField-test.js) to see what is currently working.

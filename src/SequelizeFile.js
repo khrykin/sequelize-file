@@ -29,6 +29,14 @@ const gm = graphicsMagick.subClass({ imageMagick: true });
 
 const DEFAULT_QUALITY = 100;
 
+
+const Storage = {
+  write(file, instance) {
+
+  }
+
+};
+
 export default class SequelizeField {
 
   /**
@@ -149,6 +157,10 @@ export default class SequelizeField {
   _setFile(instance, options, afterCreate) {
     const file = instance.getDataValue(this._VIRTUAL_ATTRIBUTE_NAME);
 
+    const FileStorage = {
+      write: this._attachFile.bind(this)
+    }
+
     if (( file && file.updated ) || typeof file === 'undefined') return;
 
     if (
@@ -159,7 +171,7 @@ export default class SequelizeField {
 
       return this._moveFromTemporary(file, instance)
         .then(file => {
-          return this._attachFile(instance, file, afterCreate, options);
+          return FileStorage.write(instance, file, afterCreate, options);
         })
         .catch(err => this._Error(err));
 
@@ -171,7 +183,7 @@ export default class SequelizeField {
       return download(url, filename)
         .catch(error => this._Error(this._validationError(error)))
         .then(file => {
-          return this._attachFile(instance, file, afterCreate, options);
+          return FileStorage.write(instance, file, afterCreate, options);
         })
         .catch(err => this._Error(err))
 
@@ -255,21 +267,13 @@ _   * @return {String}
     const original = this._fromPublic(path);
 
     if (this._SIZES) {
-       this._forEachSize(this._SIZES, (size, name, options) => {
-        const path = pathWithSize(original, name);
-        fs.stat(path, (err, stat) => {
-          if (!err) {
-            fs.unlink(path);
-          }
-        });
+      this._forEachSize(this._SIZES, (size, name, options) => {
+        const pathForSize = pathWithSize(original, name);
+        return fs.unlink(pathForSize, (e) => {});
       });
     }
 
-    fs.stat(original, (err, stat) => {
-      if (!err) {
-        fs.unlink(original);
-      }
-    });
+    fs.unlink(original, (e) => {});
   };
 
 
@@ -411,11 +415,8 @@ _   * @return {String}
       if (!new RegExp(this._MIMETYPE).test(file.mimetype)) {
 
         /* Remove bad temporary */
-        fs.stat(file.path, (err, stat) => {
-          if (!err) {
-            fs.unlink(file.path);
-          }
-        });
+
+        fs.unlink(file.path, () => {});
 
         throw (
           this._validationError(
@@ -683,7 +684,7 @@ function download(url, path) {
       if (err) return reject(err);
 
       if (res.statusCode < 200 || res.statusCode >= 400 ) {
-        reject(
+        return reject(
           `Can't download resource: "${url}" responded with ` +
           `"${res.statusCode}: ${res.statusMessage}"`
         );
