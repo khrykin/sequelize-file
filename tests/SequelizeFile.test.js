@@ -5,7 +5,6 @@ import {
   ValidationErrorItem
 } from 'sequelize';
 
-import expect from 'expect';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
@@ -52,7 +51,7 @@ describe('SequelizeFileField', () => {
 
 
   describe('addTo', () => {
-    before(() => {
+    beforeAll(() => {
       const { addTo }
         = new SequelizeFileField(DEFAULT_OPTIONS);
 
@@ -69,17 +68,14 @@ describe('SequelizeFileField', () => {
     it('should add STRING and VIRTUAL fields and set ' +
        'getter on virtual', () => {
 
-      console.log('Model');
-      console.log(Model._rawAttributes);
-
       expect(Model.attributes.pic)
-      .toExist();
+      .toBeDefined();
 
-      expect(Model.attributes.pic.get)
-      .toBeA('function');
+      expect(typeof Model.attributes.pic.get)
+      .toBe('function');
 
       expect(Model.attributes.picPath)
-      .toExist();
+      .toBeDefined();
     });
 
     it('should add VIRTUAL field for crop if options.crop is ' +
@@ -97,53 +93,53 @@ describe('SequelizeFileField', () => {
       addTo(Model);
 
       expect(Model.attributes.picCrop)
-      .toExist();
+      .toBeDefined();
     });
 
     it('should add hooks to Model', () => {
       expect(Model.hasHook('afterCreate'))
-      .toEqual(true);
+      .toBeTruthy();
       expect(Model.hasHook('beforeUpdate'))
-      .toEqual(true);
+      .toBeTruthy();
       expect(Model.hasHook('beforeDestroy'))
-      .toEqual(true);
+      .toBeTruthy();
     });
 
   });
 
-  describe('behaviour', () => {
-    before(done => {
+  describe('File management', () => {
+    beforeAll(() => new Promise((resolve, reject) => {
       exec(`mkdir -p ${TMP_FOLDER}`, err => {
-        // if (err) console.log(err);
-        done();
+        if (err) return reject(err);
+        resolve();
       });
-    });
+    }));
 
-    after(done => {
+    afterAll(() => new Promise((resolve, reject) => {
       exec(`rm -r ${TMP_FOLDER}`, err => {
-        // if (err) console.log(err);
-        done();
+        if (err) return reject(err);
+        resolve();
       });
-    });
+    }));
 
-    beforeEach(done => {
-      exec(
-        `cp ${TEST_IMAGE_PATH} ${FILE.path}`, err => {
-        // if (err) console.log(err);
-        done();
+    beforeEach(() => new Promise((resolve, reject) => {
+      exec(`cp ${TEST_IMAGE_PATH} ${FILE.path}`, err => {
+        if (err) return reject(err);
+        resolve();
       });
-    });
+    }));
 
-    afterEach(done => {
+    afterEach(() => new Promise((resolve, reject) => {
       exec( 'rm -r public/uploads/models', err => {
-        // if (err) console.log(err);
-        done();
+        resolve();
       });
-    });
+    }));
+
+    // it("")
 
     describe("when attribute and mimetype are set", () => {
 
-      before(() => {
+      beforeAll(() => {
         const { addTo }
           = new SequelizeFileField(DEFAULT_OPTIONS);
 
@@ -163,7 +159,7 @@ describe('SequelizeFileField', () => {
             .create({ pic: URL })
             .then(({ id }) => Model.findById(id))
             .then(instance => {
-              expect(instance.pic).toBeA('string');
+              expect(typeof instance.pic).toBe('string');
               return fileExists(instance.pic)
             })
             .then(exists => expect(exists).toEqual(true))
@@ -176,21 +172,22 @@ describe('SequelizeFileField', () => {
             .create({ pic: FILE })
             .then(({ id }) => Model.findById(id))
             .then(instance => {
-              expect(instance.pic).toBeA('string');
+              expect(typeof instance.pic).toBe('string');
               return fileExists(instance.pic)
             })
             .catch(err => Promise.reject(err))
             ;
         });
 
-        it('shouldn\'t do anything if attribute isn\'t set', () => {
+        it('shouldn\'t do anything if attribute isn\'t set', (done) => {
           return Model
             .create({ name: 'Tina' })
-            .then(({ id }) => Model.findById(id))
+            .then(instance => instance.reload())
             .then(instance => {
               fs.stat(`public/uploads/models/pics/${instance.id}`, (err, stat) => {
-                expect(err).toExist();
-                expect(err.code).toEqual('ENOENT');
+                expect(err).toBeDefined();
+                expect(err.code).toBe('ENOENT');
+                done();
               });
             });
         });
@@ -205,7 +202,7 @@ describe('SequelizeFileField', () => {
             .then(instance => instance.update({ pic: URL }))
             .then(({ id }) => Model.findById(id))
             .then(instance => {
-              expect(instance.pic).toBeA('string');
+              expect(typeof instance.pic).toBe('string');
               return fileExists(instance.pic)
             })
             .then(exists => expect(exists).toEqual(true))
@@ -220,10 +217,10 @@ describe('SequelizeFileField', () => {
             .then(({ id }) => Model.findById(id))
             .then(instance => {
 
-              expect(instance.pic).toBeA('string');
+              expect(typeof instance.pic).toBe('string');
 
               fs.stat('public' + instance.pic, (err, stat) => {
-                expect(err).toNotExist();
+                expect(err).toBeFalsy();
                 done();
               });
             })
@@ -231,18 +228,19 @@ describe('SequelizeFileField', () => {
             ;
         });
 
-        it('should replace old file from url to file', (done) => {
+        it('should replace old file created from url to new destination when ' +
+           'updated via file object', (done) => {
           return Model
             .create({ pic: URL })
             .then(instance => instance.update({ pic: FILE }))
             .then(({ id }) => Model.findById(id))
             .then(instance => {
 
-              expect(instance.pic).toBeA('string');
-              expect(instance.pic).toInclude('Lenna');
+              expect(typeof instance.pic).toBe('string');
+              expect(instance.pic).toMatch('Lenna');
 
               fs.stat('public' + instance.pic, (err, stat) => {
-                expect(err).toNotExist();
+                expect(err).toBeFalsy();
                 done();
               });
             })
@@ -250,18 +248,19 @@ describe('SequelizeFileField', () => {
             ;
         });
 
-        it('should replace old file from url to url', (done) => {
+        it('should replace old file created from file object to new destination when ' +
+           'updated via url', (done) => {
           return Model
             .create({ pic: URL })
             .then(instance => instance.update({ pic: URL2 }))
             .then(({ id }) => Model.findById(id))
             .then(instance => {
 
-              expect(instance.pic).toBeA('string');
-              expect(instance.pic).toInclude('120316-2');
+              expect(typeof instance.pic).toBe('string');
+              expect(instance.pic).toMatch('120316-2');
 
               fs.stat('public' + instance.pic, (err, stat) => {
-                expect(err).toNotExist();
+                expect(err).toBeFalsy();
                 done();
               });
             })
@@ -279,14 +278,14 @@ describe('SequelizeFileField', () => {
                 .then(newInstance => {
                   const newPic = instance.pic;
                   fs.stat('public' + newPic, (err, stat) => {
-                    expect(err).toNotExist();
+                    expect(err).toBeFalsy();
                     fs.stat('public' + oldPic, (err, stat) => {
-                      expect(err).toNotExist();
+                      expect(err).toBeFalsy();
                       done();
                     });
                   });
                 })
-                .catch(err => expect(err).toNotExist())
+                .catch(err => Promise.reject(err))
                 ;
             });
         });
@@ -314,20 +313,20 @@ describe('SequelizeFileField', () => {
                 .then(newInstance => {
                   const newPic = instance.pic;
                   fs.stat('public' + newPic, (err, stat) => {
-                    expect(err).toNotExist();
+                    expect(err).toBeFalsy();
                     fs.stat('public' + oldPic, (err, stat) => {
-                      expect(err).toExist();
-                      expect(err.code).toEqual('ENOENT');
+                      expect(err).toBeDefined();
+                      expect(err.code).toBe('ENOENT');
                       done();
                     });
                   });
                 })
-                .catch(err => expect(err).toNotExist())
+                .catch(err => Promise.reject(err))
                 ;
             });
         });
 
-        it('should delete image if attribute is null', () => {
+        it('should delete file attribute if new value is null', () => {
           return Model
             .create({ pic: FILE })
             .then()
@@ -339,7 +338,7 @@ describe('SequelizeFileField', () => {
                 return instance.save()
                   .then(({ id }) => Model.findById(id))
                   .then(instance => {
-                    expect(instance.pic).toNotExist();
+                    expect(instance.pic).toBeFalsy();
                   })
                   .catch(err => Promise.reject(err));
               })
@@ -356,9 +355,9 @@ describe('SequelizeFileField', () => {
               return instance.update({ name: 'Tina' })
             })
             .then(instance => {
-              expect(instance.pic).toBeA('string');
+              expect(typeof instance.pic).toBe('string');
               fs.stat('public' + instance.pic, (err, stat) => {
-                expect(err).toNotExist();
+                expect(err).toBeFalsy();
                 done()
               });
             });
@@ -377,10 +376,10 @@ describe('SequelizeFileField', () => {
               throw "Promise resolved when it shoudn't";
             })
             .catch(error => {
-              expect(error).toBeA(ValidationError);
-              expect(error.errors.length).toEqual(1);
-              expect(error.errors[0]).toBeA(ValidationErrorItem);
-              expect(error.errors[0].path).toEqual('pic');
+              expect(error).toBeInstanceOf(ValidationError);
+              expect(error.errors.length).toBe(1);
+              expect(error.errors[0]).toBeInstanceOf(ValidationErrorItem);
+              expect(error.errors[0].path).toBe('pic');
             });
         });
 
@@ -401,15 +400,15 @@ describe('SequelizeFileField', () => {
                throw "Promise resolved when it shoudn't";
              })
              .catch(error => {
-               expect(error).toBeA(ValidationError);
-               expect(error.errors.length).toEqual(1);
-               expect(error.errors[0]).toBeA(ValidationErrorItem);
-               expect(error.errors[0].path).toEqual('pic');
+               expect(error).toBeInstanceOf(ValidationError);
+               expect(error.errors.length).toBe(1);
+               expect(error.errors[0]).toBeInstanceOf(ValidationErrorItem);
+               expect(error.errors[0].path).toBe('pic');
              });
         });
 
-        it('should throw sequelize error when file is ' +
-           'url and can\'t download', () => {
+        it('should throw sequelize error when file is set by' +
+           'url and can\'t be downloaded', () => {
            let inst;
            return Model
              .create({ pic: FILE })
@@ -422,29 +421,25 @@ describe('SequelizeFileField', () => {
                throw "Promise resolved when it shoudn't";
              })
              .catch(error => {
-               expect(error).toBeA(ValidationError);
-               expect(error.errors.length).toEqual(1);
-               expect(error.errors[0]).toBeA(ValidationErrorItem);
-               expect(error.errors[0].path).toEqual('pic');
-               expect(error.errors[0].message).toInclude('404: Not Found')
+               expect(error).toBeInstanceOf(ValidationError);
+               expect(error.errors.length).toBe(1);
+               expect(error.errors[0]).toBeInstanceOf(ValidationErrorItem);
+               expect(error.errors[0].path).toBe('pic');
+               expect(error.errors[0].message).toMatch('404: Not Found')
                return inst.update({ pic: INVALID_URL })
              })
              .catch(error => {
-               expect(error).toBeA(ValidationError);
-               expect(error.errors.length).toEqual(1);
-               expect(error.errors[0]).toBeA(ValidationErrorItem);
-               expect(error.errors[0].path).toEqual('pic');
+               expect(error).toBeInstanceOf(ValidationError);
+               expect(error.errors.length).toBe(1);
+               expect(error.errors[0]).toBeInstanceOf(ValidationErrorItem);
+               expect(error.errors[0].path).toBe('pic');
              })
-        });
-
+          });
       });
-
-
-
     });
 
     describe('post-processing', () => {
-      before(() => {
+      beforeAll(() => {
         const { addTo }
           = new SequelizeFileField({
             ...DEFAULT_OPTIONS,
@@ -455,8 +450,7 @@ describe('SequelizeFileField', () => {
           });
 
         Model = sequelize.define('model', {
-          name: STRING,
-
+          name: STRING
         });
 
         addTo(Model);
@@ -471,9 +465,9 @@ describe('SequelizeFileField', () => {
             return Model.findById(id);
           })
           .then(instance => {
-            expect(instance.picPath).toBeA('string');
-            expect(instance.pic).toBeA('object');
-            expect(instance.pic).toInclude({
+            expect(typeof instance.picPath).toBe('string');
+            expect(typeof instance.pic).toBe('object');
+            expect(instance.pic).toEqual({
               original: instance.picPath,
               small: pathWithSize(instance.picPath, 'small'),
               big: pathWithSize(instance.picPath, 'big'),
@@ -481,23 +475,23 @@ describe('SequelizeFileField', () => {
 
               return fileExists(instance.pic.original)
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return fileExists(pathWithSize(instance.picPath, 'small'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'small'))
               })
               .then(({ width, height }) => {
-                expect(width).toEqual(64);
+                expect(width).toBe(64);
                 return fileExists(pathWithSize(instance.picPath, 'big'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'big'))
               })
               .then(({ width, height }) => {
-                expect(height).toEqual(300);
+                expect(height).toBe(300);
               })
               .catch(err => Promise.reject(err))
             })
@@ -535,9 +529,9 @@ describe('SequelizeFileField', () => {
             return Model.findById(id);
           })
           .then(instance => {
-            expect(instance.picPath).toBeA('string');
-            expect(instance.pic).toBeA('object');
-            expect(instance.pic).toInclude({
+            expect(typeof instance.picPath).toBe('string');
+            expect(typeof instance.pic).toBe('object');
+            expect(instance.pic).toEqual({
               original: instance.picPath,
               small: pathWithSize(instance.picPath, 'small'),
               big: pathWithSize(instance.picPath, 'big'),
@@ -545,23 +539,23 @@ describe('SequelizeFileField', () => {
 
               return fileExists(instance.pic.original)
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return fileExists(pathWithSize(instance.picPath, 'small'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'small'))
               })
               .then(({ width, height }) => {
-                expect(width).toEqual(64);
+                expect(width).toBe(64);
                 return fileExists(pathWithSize(instance.picPath, 'big'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'big'))
               })
               .then(({ width, height }) => {
-                expect(height).toEqual(300);
+                expect(height).toBe(300);
               })
               .catch(err => Promise.reject(err))
             })
@@ -594,9 +588,9 @@ describe('SequelizeFileField', () => {
             return Model.findById(id);
           })
           .then(instance => {
-            expect(instance.picPath).toBeA('string');
-            expect(instance.pic).toBeA('object');
-            expect(instance.pic).toInclude({
+            expect(typeof instance.picPath).toBe('string');
+            expect(typeof instance.pic).toBe('object');
+            expect(instance.pic).toEqual({
               original: instance.picPath,
               small: pathWithSize(instance.picPath, 'small'),
               big: pathWithSize(instance.picPath, 'big'),
@@ -604,23 +598,23 @@ describe('SequelizeFileField', () => {
 
               return fileExists(instance.pic.original)
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return fileExists(pathWithSize(instance.picPath, 'small'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'small'))
               })
               .then(({ width, height }) => {
-                expect(width).toEqual(64);
+                expect(width).toBe(64);
                 return fileExists(pathWithSize(instance.picPath, 'big'))
               })
               .then(exists => {
-                expect(exists).toEqual(true);
+                expect(exists).toBeTruthy();
                 return getSize('public' + pathWithSize(instance.picPath, 'big'))
               })
               .then(({ width, height }) => {
-                expect(height).toEqual(300);
+                expect(height).toBe(300);
               })
               .catch(err => Promise.reject(err))
             })
@@ -630,7 +624,7 @@ describe('SequelizeFileField', () => {
       });
 
     });
+  
 
   });
-
 });

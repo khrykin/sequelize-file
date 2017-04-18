@@ -109,7 +109,8 @@ export default class SequelizeField {
     this._PUBLIC_PATH            = publicPath || 'public';
     this._BASEPATH               = basepath || `${this._PUBLIC_PATH}/uploads`;
     this._FOLDER_KEY             = folderKey === null ? null : (folderKey || 'id');
-    this._GROUP_BY_ATTRIBUTE     = typeof groupByAttribute === undefined ? true : groupByAttribute;
+    this._GROUP_BY_ATTRIBUTE     = typeof groupByAttribute === undefined ?
+                                   true : groupByAttribute;
 
     this._WRONG_TYPE_MESSAGE     = wrongTypeMessage || "Wrong file's MIME type";
 }
@@ -165,10 +166,7 @@ export default class SequelizeField {
     } else if (typeof file === 'string') {
 
       const url = file;
-      const foldername = instance.getDataValue(this._FOLDER_KEY);
-      const filename
-        = foldername ? `${this._BASEPATH}/${foldername}` +
-          `/${nameFromUrl(url)}` : `${this._BASEPATH}/${nameFromUrl(url)}`;
+      const filename = this._getFileNameForMoving.bind(this)(instance, url);
 
       return download(url, filename)
         .catch(error => this._Error(this._validationError(error)))
@@ -183,6 +181,28 @@ export default class SequelizeField {
       }
       instance.setDataValue(this._PATH_ATTRIBUTE_NAME, null);
     }
+  }
+
+  /**
+   * Returns instance base path
+   * @param {Sequelize.Instance} instance
+_   * @return {String}
+   */
+
+  _getInstancePath(instance) {
+    if (!this._FOLDER_KEY) return this._BASEPATH;
+    return `${this._BASEPATH}/${instance.getDataValue(this._FOLDER_KEY)}`;
+  }
+
+  /**
+   * Returns path to which temporary file will be moved to for a given instance
+   * @param {Sequelize.Instance} instance
+   * @param {String} tmp
+   * @return {String}
+   */
+
+  _getFileNameForMoving(instance, tmp) {
+    return this._getInstancePath(instance) + `/${nameFromUrl(tmp)}`;
   }
 
   /**
@@ -313,10 +333,11 @@ export default class SequelizeField {
     const { path } = file;
     return new Promise((resolve, reject) => {
 
-      const instancePath = `${this._BASEPATH.replace(/\/$/, '')}` +
-       `/${instance.getDataValue(this._FOLDER_KEY)}`;
-      const newPath = instancePath +
-       `/${nameFromUrl(path)}` ;
+      const instancePath = this._getInstancePath.bind(this)(instance);
+      // const newPath = instancePath +
+      //  `/${nameFromUrl(path)}` ;
+
+      const newPath = this._getFileNameForMoving.bind(this)(instance, path);
 
       return createDir(instancePath)
         .then(instancePath => {
@@ -512,11 +533,14 @@ export default class SequelizeField {
        _PUBLIC_PATH,
       } = this;
 
-     const modelFolder = `${pluralize(Model.name.toLowerCase())}` +
-     `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
+     let MODEL_FOLDER = `${pluralize(Model.name.toLowerCase())}`;
 
-     this._BASEPATH =  this._GROUP_BY_ATTRIBUTE ?
-      `${this._BASEPATH}/${modelFolder}` : this._BASEPATH;
+     if (this._GROUP_BY_ATTRIBUTE) {
+       MODEL_FOLDER += `/${pluralize(_VIRTUAL_ATTRIBUTE_NAME.toLowerCase())}`;
+     }
+
+     this._BASEPATH = `${this._BASEPATH}/${MODEL_FOLDER}`;
+
 
      if (!Model.attributes[_VIRTUAL_ATTRIBUTE_NAME]) {
        throw new Error(
@@ -567,11 +591,8 @@ export default class SequelizeField {
 
  export function getSize(path) {
    return new Promise((resolve, reject) => {
-    gm(path)
-    .size((err, size) => {
-      if (err) {
-        return reject(err);
-      }
+    gm(path).size((err, size) => {
+      if (err) return reject(err);
       resolve(size);
     });
   });
@@ -595,9 +616,7 @@ function resize(gm, path, name, size, quality=DEFAULT_QUALITY) {
       .resize(width, height, options)
       .quality(quality)
       .write(filename, err => {
-        if (err) {
-          return reject(err);
-        }
+        if (err) return reject(err);
         return resolve(filename);
       });
   });
