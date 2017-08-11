@@ -1,6 +1,9 @@
-# Sequelize File
+# Sequelize File 
+
 [![Travis](https://img.shields.io/travis/khrykin/sequelize-file.svg)](https://travis-ci.org/khrykin/sequelize-file)
 [![npm](https://img.shields.io/npm/v/sequelize-file.svg)](https://www.npmjs.com/package/sequelize-file)
+
+## [DEPRECATED] in favour of [attachments](https://github.com/khrykin/attachments)
 
 This package allows you to attach files to your sequelize instances as easy as you set your plain attributes and define MIME type validation and post-processing rules next to your models.
 
